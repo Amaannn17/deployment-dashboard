@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Progress Tracker</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --surface: #1e1e1e;
+            --surface-light: #2c2c2c;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a0a0a0;
+            --accent: #00e5ff;
+            --danger: #ff5252;
+            --border: #333333;
+            --card-bg: #1a1a1a;
+            --highlight: rgba(0, 229, 255, 0.1);
+
+            /* Chart Colors */
+            --color-overall: #00e5ff;
+            --color-pulling: #ff9100;
+            --color-term: #d500f9;
+            --color-inst: #2979ff;
+            --color-comm: #00e676;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .controls { display: flex; gap: 10px; }
+
+        /* Dashboard Charts Layout */
+        .dashboard-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background-color: var(--surface);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .upload-card {
+            background-color: var(--surface);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* View Selector Bar */
+        .view-control-bar {
+            background-color: var(--highlight);
+            border: 1px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .table-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .table-card h3 {
+            margin-top: 0;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        input[type="file"]::file-selector-button, select, button {
+            background-color: var(--surface-light);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        select { padding: 9px; font-size: 1rem; color: var(--accent); border-color: var(--accent); outline: none; }
+        
+        button.primary { background-color: var(--accent); color: var(--bg-dark); border: none; }
+        button.danger { background-color: transparent; color: var(--danger); border-color: var(--danger); }
+        button:hover { opacity: 0.8; transform: translateY(-1px); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-secondary); text-transform: uppercase; font-size: 0.8rem; white-space: nowrap;}
+        
+        .stage-val { font-weight: bold; font-size: 1rem; }
+        .rem-val { color: var(--text-primary); }
+        .completed-row { opacity: 0.4; }
+
+        .input-group { display: flex; align-items: center; gap: 8px; }
+        
+        input[type="number"] {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+            width: 80px;
+        }
+
+        /* Progress Bar in Table */
+        .progress-container {
+            width: 100px;
+            background-color: var(--bg-dark);
+            border-radius: 4px;
+            height: 6px;
+            margin-top: 5px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .progress-bar { height: 100%; transition: width 0.4s ease; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h2 style="margin: 0;">Deployment Dashboard</h2>
+            <p style="color: var(--text-secondary); margin-top: 5px;">Phase-Isolated Tracking</p>
+        </div>
+        <div class="controls">
+            <button class="primary" onclick="exportReport()" id="exportBtn" style="display: none;">Export</button>
+            <button class="danger" onclick="clearData()" id="clearBtn" style="display: none;">Reset</button>
+        </div>
+    </div>
+
+    <div class="upload-card" id="initialUpload">
+        <div>
+            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Upload BOM / Equipment List to begin:</label>
+            <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
+        </div>
+    </div>
+
+    <div class="dashboard-charts" id="dashboardCharts" style="display: none;">
+        <div class="chart-card" style="border-color: var(--color-overall);">
+            <h3 style="color: var(--text-primary);">Overall Progress</h3>
+            <canvas id="chart-overall"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Cable Pulling</h3>
+            <canvas id="chart-pulling"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Termination</h3>
+            <canvas id="chart-termination"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Installation</h3>
+            <canvas id="chart-installation"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Commissioning</h3>
+            <canvas id="chart-commissioning"></canvas>
+        </div>
+    </div>
+
+    <div class="upload-card" id="appendUpload" style="display: none;">
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">Append new data to current tracker:</span>
+        <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
+    </div>
+
+    <div class="view-control-bar" id="viewControlBar" style="display: none;">
+        <span style="font-size: 1.1rem; font-weight: bold;">Select View:</span>
+        <select id="activeViewSelector" onchange="renderActiveTable()">
+            <option value="pulling">1. Cable Pulling (30%)</option>
+            <option value="termination">2. Termination (30%)</option>
+            <option value="installation">3. Installation (30%)</option>
+            <option value="commissioning">4. Commissioning (10%)</option>
+        </select>
+    </div>
+
+    <div id="tableContainer"></div>
+
+    <script>
+        let projectData = {};
+        let chartInstances = {}; // Store all 5 chart instances
+
+        // Chart Stage Colors mapping
+        const stageColors = {
+            overall: '#00e5ff',
+            pulling: '#ff9100',
+            termination: '#d500f9',
+            installation: '#2979ff',
+            commissioning: '#00e676'
+        };
+
+        const formatNum = (num) => parseFloat(Number(num).toFixed(2));
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('deploymentTrackerData');
+            if (savedData) {
+                projectData = JSON.parse(savedData);
+                renderUI();
+            }
+        });
+
+        function saveData() { localStorage.setItem('deploymentTrackerData', JSON.stringify(projectData)); }
+
+        document.getElementById('excelUpload').addEventListener('change', handleUpload);
+        document.getElementById('excelUploadInitial').addEventListener('change', handleUpload);
+
+        function handleUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                processData(jsonData);
+                document.getElementById('excelUpload').value = '';
+                document.getElementById('excelUploadInitial').value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processData(data) {
+            data.forEach(row => {
+                let normalizedRow = {};
+                for (let key in row) { normalizedRow[key.toLowerCase().trim()] = row[key]; }
+
+                let model = normalizedRow['fixture reference'] || normalizedRow['future reference'] || 
+                            normalizedRow['model number'] || normalizedRow['model number/future reference'] || 
+                            normalizedRow['model'];
+                let qty = parseFloat(normalizedRow['quantity'] || normalizedRow['qty']);
+                let unit = normalizedRow['unit'] || normalizedRow['uom'] || "ea";
+
+                if (model && !isNaN(qty)) {
+                    model = String(model).trim();
+                    qty = formatNum(qty); 
+
+                    if (!projectData[model]) {
+                        projectData[model] = { 
+                            quantity: 0, 
+                            unit: unit, 
+                            stages: { pulling: 0, termination: 0, installation: 0, commissioning: 0 } 
+                        };
+                    }
+                    projectData[model].quantity = formatNum(projectData[model].quantity + qty);
+                }
+            });
+            saveData();
+            renderUI();
+        }
+
+        // Plugin to draw text in the center of the doughnut charts
+        const centerTextPlugin = {
+            id: 'centerText',
+            beforeDraw: function(chart) {
+                if (chart.config.options.elements.center) {
+                    const ctx = chart.ctx;
+                    const centerConfig = chart.config.options.elements.center;
+                    ctx.save();
+                    const fontSize = (chart.height / 100).toFixed(2);
+                    ctx.font = "bold " + fontSize + "em sans-serif";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = "#ffffff";
+                    const text = centerConfig.text;
+                    const textX = Math.round((chart.width - ctx.measureText(text).width) / 2);
+                    const textY = chart.height / 2;
+                    ctx.fillText(text, textX, textY);
+                    ctx.restore();
+                }
+            }
+        };
+
+        Chart.register(centerTextPlugin);
+
+        function drawOrUpdateChart(chartId, done, total, colorStr) {
+            const canvasId = `chart-${chartId}`;
+            const remaining = formatNum(total - done);
+            const percentStr = total > 0 ? ((done / total) * 100).toFixed(0) + '%' : '0%';
+
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].data.datasets[0].data = [done, remaining];
+                chartInstances[chartId].options.elements.center.text = percentStr;
+                chartInstances[chartId].update();
+            } else {
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                chartInstances[chartId] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Done', 'Remaining'],
+                        datasets: [{ data: [done, remaining], backgroundColor: [colorStr, '#333333'], borderWidth: 0 }]
+                    },
+                    options: {
+                        responsive: true,
+                        cutout: '75%',
+                        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                        elements: { center: { text: percentStr } }
+                    }
+                });
+            }
+        }
+
+        function updateAllCharts() {
+            let stats = {
+                totalQty: 0,
+                weightedTotal: 0,
+                weightedDone: 0,
+                pullingDone: 0,
+                terminationDone: 0,
+                installationDone: 0,
+                commissioningDone: 0
+            };
+
+            for (const item of Object.values(projectData)) {
+                stats.totalQty += item.quantity;
+                stats.pullingDone += item.stages.pulling;
+                stats.terminationDone += item.stages.termination;
+                stats.installationDone += item.stages.installation;
+                stats.commissioningDone += item.stages.commissioning;
+
+                // Weighted Math for Overall
+                stats.weightedTotal += item.quantity;
+                stats.weightedDone += (
+                    (item.stages.pulling * 0.30) +
+                    (item.stages.termination * 0.30) +
+                    (item.stages.installation * 0.30) +
+                    (item.stages.commissioning * 0.10)
+                );
+            }
+
+            drawOrUpdateChart('overall', stats.weightedDone, stats.weightedTotal, stageColors.overall);
+            drawOrUpdateChart('pulling', stats.pullingDone, stats.totalQty, stageColors.pulling);
+            drawOrUpdateChart('termination', stats.terminationDone, stats.totalQty, stageColors.termination);
+            drawOrUpdateChart('installation', stats.installationDone, stats.totalQty, stageColors.installation);
+            drawOrUpdateChart('commissioning', stats.commissioningDone, stats.totalQty, stageColors.commissioning);
+        }
+
+        function renderUI() {
+            const hasData = Object.keys(projectData).length > 0;
+            
+            document.getElementById('initialUpload').style.display = hasData ? 'none' : 'block';
+            document.getElementById('dashboardCharts').style.display = hasData ? 'grid' : 'none';
+            document.getElementById('viewControlBar').style.display = hasData ? 'flex' : 'none';
+            document.getElementById('appendUpload').style.display = hasData ? 'flex' : 'none';
+            document.getElementById('exportBtn').style.display = hasData ? 'block' : 'none';
+            document.getElementById('clearBtn').style.display = hasData ? 'block' : 'none';
+            
+            if (hasData) {
+                updateAllCharts();
+                renderActiveTable(); 
+            } else {
+                document.getElementById('tableContainer').innerHTML = '';
+            }
+        }
+
+        function renderActiveTable() {
+            const container = document.getElementById('tableContainer');
+            const selector = document.getElementById('activeViewSelector');
+            const activeStageId = selector.value;
+            const activeStageTitle = selector.options[selector.selectedIndex].text;
+            const stageColor = stageColors[activeStageId];
+
+            let tableHTML = `
+                <div class="table-card">
+                    <h3 style="color: ${stageColor}">Current View: ${activeStageTitle}</h3>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fixture / Model Ref</th>
+                                    <th>Quantity</th>
+                                    <th>Unit</th>
+                                    <th>Workdone</th>
+                                    <th>Remaining</th>
+                                    <th>Progress</th>
+                                    <th>Log (±)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            for (const [model, item] of Object.entries(projectData)) {
+                let qty = formatNum(item.quantity);
+                let done = formatNum(item.stages[activeStageId]);
+                let remaining = formatNum(qty - done);
+                
+                let isComplete = remaining <= 0;
+                let progressPercent = qty > 0 ? Math.min(((done / qty) * 100), 100).toFixed(0) : 0;
+
+                tableHTML += `
+                    <tr class="${isComplete ? 'completed-row' : ''}">
+                        <td style="font-weight: 500;">${model}</td>
+                        <td>${qty}</td>
+                        <td style="color: var(--text-secondary);">${item.unit}</td>
+                        <td class="stage-val" style="color: ${stageColor}">${done}</td>
+                        <td class="rem-val">${remaining}</td>
+                        <td>
+                            <span style="font-size: 0.8rem; font-weight: bold;">${progressPercent}%</span>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${stageColor};"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="input-group">
+                                <input type="number" step="0.01" id="input-${activeStageId}-${model}" placeholder="Qty">
+                                <button class="primary" style="background-color: ${stageColor}; color: #121212" onclick="updateWork('${model}', '${activeStageId}')">Log</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tableHTML += `</tbody></table></div></div>`;
+            container.innerHTML = tableHTML;
+        }
+
+        function updateWork(model, stage) {
+            const inputField = document.getElementById(`input-${stage}-${model}`);
+            const addedQty = parseFloat(inputField.value);
+
+            if (isNaN(addedQty)) return;
+
+            let newTotal = formatNum(projectData[model].stages[stage] + addedQty);
+            let maxQty = formatNum(projectData[model].quantity);
+            
+            if (newTotal < 0) newTotal = 0;
+            if (newTotal > maxQty) newTotal = maxQty;
+
+            projectData[model].stages[stage] = newTotal;
+            
+            saveData();
+            renderActiveTable(); 
+            updateAllCharts();     
+        }
+
+        function exportReport() {
+            const exportArray = Object.keys(projectData).map(model => {
+                const item = projectData[model];
+                const itemProgress = formatNum((item.stages.pulling / item.quantity) * 30 + (item.stages.termination / item.quantity) * 30 + (item.stages.installation / item.quantity) * 30 + (item.stages.commissioning / item.quantity) * 10);
+                
+                return {
+                    "Fixture/Model Reference": model,
+                    "Total Quantity": formatNum(item.quantity),
+                    "Unit": item.unit,
+                    "Cable Pulling Done": formatNum(item.stages.pulling),
+                    "Cable Pulling Remaining": formatNum(item.quantity - item.stages.pulling),
+                    "Termination Done": formatNum(item.stages.termination),
+                    "Termination Remaining": formatNum(item.quantity - item.stages.termination),
+                    "Installation Done": formatNum(item.stages.installation),
+                    "Installation Remaining": formatNum(item.quantity - item.stages.installation),
+                    "Commissioning Done": formatNum(item.stages.commissioning),
+                    "Commissioning Remaining": formatNum(item.quantity - item.stages.commissioning),
+                    "Overall Progress (%)": itemProgress + "%"
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportArray);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Deployment Dashboard");
+            const dateStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Chronos_Report_${dateStr}.xlsx`);
+        }
+
+        function clearData() {
+            if(confirm("Are you sure you want to delete all data? This cannot be undone.")) {
+                projectData = {};
+                localStorage.removeItem('deploymentTrackerData');
+                Object.values(chartInstances).forEach(chart => chart.destroy());
+                chartInstances = {};
+                renderUI();
+            }
+        }
+    </script>
+</body>
+</html>
