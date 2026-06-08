@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Equipment Progress Tracker</title>
+    <title>Chronos Deployment Dashboard</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
@@ -19,18 +19,17 @@
             --surface-light: #2c2c2c;
             --text-primary: #f5f5f5;
             --text-secondary: #a0a0a0;
-            --accent: #00e5ff;
             --danger: #ff5252;
             --border: #333333;
             --card-bg: #1a1a1a;
-            --highlight: rgba(0, 229, 255, 0.1);
-
-            /* Chart Colors */
-            --color-overall: #00e5ff;
-            --color-pulling: #ff9100;
-            --color-term: #d500f9;
-            --color-inst: #2979ff;
-            --color-comm: #00e676;
+            
+            /* System Color Themes */
+            --c-lighting: #ffeb3b;   /* Yellow */
+            --c-it: #2979ff;         /* Blue */
+            --c-automation: #d500f9; /* Purple */
+            --c-av: #ff1744;         /* Red/Pink */
+            --c-bms: #00e676;        /* Green */
+            --c-rem: #333333;        /* Dark Grey for Remaining */
         }
 
         body {
@@ -52,53 +51,48 @@
 
         .controls { display: flex; gap: 10px; }
 
-        /* Dashboard Charts Layout */
-        .dashboard-charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        .dashboard-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
             margin-bottom: 20px;
         }
 
         .chart-card {
             background-color: var(--surface);
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             border: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-        }
-
-        .chart-card h3 {
-            margin: 0 0 10px 0;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            text-align: center;
+            width: 320px;
         }
 
         .upload-card {
             background-color: var(--surface);
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             border: 1px solid var(--border);
-            margin-bottom: 20px;
+            flex-grow: 1;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        /* View Selector Bar */
+        /* View & System Selector Bar */
         .view-control-bar {
-            background-color: var(--highlight);
-            border: 1px solid var(--accent);
+            background-color: var(--surface);
+            border: 1px solid var(--border);
             padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 15px;
+            flex-wrap: wrap;
+            transition: border-color 0.3s ease;
         }
 
         .table-card {
@@ -111,11 +105,13 @@
 
         .table-card h3 {
             margin-top: 0;
-            color: var(--accent);
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
             margin-bottom: 15px;
             font-size: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            transition: color 0.3s ease;
         }
 
         input[type="file"]::file-selector-button, select, button {
@@ -127,11 +123,12 @@
             cursor: pointer;
             font-weight: bold;
             transition: all 0.2s;
+            outline: none;
         }
 
-        select { padding: 9px; font-size: 1rem; color: var(--accent); border-color: var(--accent); outline: none; }
+        select { padding: 9px; font-size: 1rem; }
         
-        button.primary { background-color: var(--accent); color: var(--bg-dark); border: none; }
+        button.primary { border: none; color: #121212; }
         button.danger { background-color: transparent; color: var(--danger); border-color: var(--danger); }
         button:hover { opacity: 0.8; transform: translateY(-1px); }
 
@@ -158,7 +155,7 @@
             border-radius: 4px;
             width: 80px;
         }
-
+        
         /* Progress Bar in Table */
         .progress-container {
             width: 100px;
@@ -170,79 +167,112 @@
             border: 1px solid var(--border);
         }
         .progress-bar { height: 100%; transition: width 0.4s ease; }
+
+        optgroup { color: var(--text-secondary); font-style: normal; font-weight: bold; }
+        option { color: var(--text-primary); }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div>
-            <h2 style="margin: 0;">Deployment Dashboard</h2>
-            <p style="color: var(--text-secondary); margin-top: 5px;">Phase-Isolated Tracking</p>
+            <h2 style="margin: 0;">Chronos Master Dashboard</h2>
+            <p style="color: var(--text-secondary); margin-top: 5px;">Multi-Discipline Project Tracking</p>
         </div>
         <div class="controls">
-            <button class="primary" onclick="exportReport()" id="exportBtn" style="display: none;">Export</button>
-            <button class="danger" onclick="clearData()" id="clearBtn" style="display: none;">Reset</button>
+            <button class="primary" style="background-color: #f5f5f5;" onclick="exportReport()" id="exportBtn" style="display: none;">Export Excel Report</button>
+            <button class="danger" onclick="clearData()" id="clearBtn" style="display: none;">Reset Project</button>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="dashboardContainer" style="display: none;">
+        <div class="chart-card">
+            <h3 style="margin: 0 0 10px 0; color: var(--text-primary); font-size: 1rem;">Project Completion by System</h3>
+            <canvas id="chart-overall"></canvas>
+        </div>
+        
+        <div class="upload-card">
+            <h3 style="margin-top: 0; color: var(--text-primary);">Add Equipment (BOM)</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <select id="uploadTargetSystem">
+                    <option value="lighting">Lighting</option>
+                    <optgroup label="Structured Cabling">
+                        <option value="it">↳ IT</option>
+                        <option value="automation">↳ Automation</option>
+                        <option value="av">↳ AV</option>
+                    </optgroup>
+                    <option value="bms">BMS</option>
+                </select>
+                <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">Select the target system discipline, then upload the Excel file.</p>
         </div>
     </div>
 
     <div class="upload-card" id="initialUpload">
-        <div>
-            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Upload BOM / Equipment List to begin:</label>
+        <h3 style="margin-top: 0;">Initialize Project</h3>
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <select id="uploadTargetSystemInitial">
+                <option value="lighting">Lighting</option>
+                <optgroup label="Structured Cabling">
+                    <option value="it">↳ IT</option>
+                    <option value="automation">↳ Automation</option>
+                    <option value="av">↳ AV</option>
+                </optgroup>
+                <option value="bms">BMS</option>
+            </select>
             <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
         </div>
     </div>
 
-    <div class="dashboard-charts" id="dashboardCharts" style="display: none;">
-        <div class="chart-card" style="border-color: var(--color-overall);">
-            <h3 style="color: var(--text-primary);">Overall Progress</h3>
-            <canvas id="chart-overall"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Cable Pulling</h3>
-            <canvas id="chart-pulling"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Termination</h3>
-            <canvas id="chart-termination"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Installation</h3>
-            <canvas id="chart-installation"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Commissioning</h3>
-            <canvas id="chart-commissioning"></canvas>
-        </div>
-    </div>
-
-    <div class="upload-card" id="appendUpload" style="display: none;">
-        <span style="color: var(--text-secondary); font-size: 0.9rem;">Append new data to current tracker:</span>
-        <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
-    </div>
-
     <div class="view-control-bar" id="viewControlBar" style="display: none;">
-        <span style="font-size: 1.1rem; font-weight: bold;">Select View:</span>
-        <select id="activeViewSelector" onchange="renderActiveTable()">
-            <option value="pulling">1. Cable Pulling (30%)</option>
-            <option value="termination">2. Termination (30%)</option>
-            <option value="installation">3. Installation (30%)</option>
-            <option value="commissioning">4. Commissioning (10%)</option>
+        <span style="font-size: 1.1rem; font-weight: bold; color: var(--text-secondary);">Active View:</span>
+        
+        <select id="activeSystemSelector" onchange="onSystemChange()">
+            <option value="lighting">1. Lighting</option>
+            <optgroup label="2. Structured Cabling">
+                <option value="it">↳ IT</option>
+                <option value="automation">↳ Automation</option>
+                <option value="av">↳ AV</option>
+            </optgroup>
+            <option value="bms">3. BMS</option>
         </select>
+
+        <span style="color: var(--border);">|</span>
+
+        <select id="activePhaseSelector" onchange="renderActiveTable()">
+            </select>
     </div>
 
     <div id="tableContainer"></div>
 
     <script>
-        let projectData = {};
-        let chartInstances = {}; // Store all 5 chart instances
+        let projectData = { lighting: {}, it: {}, automation: {}, av: {}, bms: {} };
+        let overallChartInstance = null;
 
-        // Chart Stage Colors mapping
-        const stageColors = {
-            overall: '#00e5ff',
-            pulling: '#ff9100',
-            termination: '#d500f9',
-            installation: '#2979ff',
-            commissioning: '#00e676'
+        // Color Themes matching the Pie Chart slices
+        const systemColors = {
+            lighting: 'var(--c-lighting)',
+            it: 'var(--c-it)',
+            automation: 'var(--c-automation)',
+            av: 'var(--c-av)',
+            bms: 'var(--c-bms)'
+        };
+
+        // Distinct Phase Configurations
+        const phaseConfig = {
+            lighting: {
+                pulling: { text: '1. Cable Pulling', w: 0.3 },
+                termination: { text: '2. Termination', w: 0.3 },
+                installation: { text: '3. Installation', w: 0.3 },
+                commissioning: { text: '4. Commissioning', w: 0.1 }
+            },
+            other: {
+                pulling: { text: '1. Cable Pulling', w: 0.3 },
+                termination: { text: '2. Termination', w: 0.3 },
+                commissioning: { text: '3. Testing & Commissioning', w: 0.3 },
+                drivers: { text: '4. Install Drivers', w: 0.1 }
+            }
         };
 
         const formatNum = (num) => parseFloat(Number(num).toFixed(2));
@@ -267,19 +297,31 @@
         function handleUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
+
+            const targetSystem = e.target.id === 'excelUploadInitial' 
+                ? document.getElementById('uploadTargetSystemInitial').value 
+                : document.getElementById('uploadTargetSystem').value;
+
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                processData(jsonData);
+                
+                processData(jsonData, targetSystem);
+                
                 document.getElementById('excelUpload').value = '';
                 document.getElementById('excelUploadInitial').value = '';
+                
+                document.getElementById('activeSystemSelector').value = targetSystem;
+                onSystemChange(); 
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function processData(data) {
+        function processData(data, targetSystem) {
+            if (!projectData[targetSystem]) projectData[targetSystem] = {};
+
             data.forEach(row => {
                 let normalizedRow = {};
                 for (let key in row) { normalizedRow[key.toLowerCase().trim()] = row[key]; }
@@ -294,29 +336,27 @@
                     model = String(model).trim();
                     qty = formatNum(qty); 
 
-                    if (!projectData[model]) {
-                        projectData[model] = { 
+                    if (!projectData[targetSystem][model]) {
+                        projectData[targetSystem][model] = { 
                             quantity: 0, 
                             unit: unit, 
-                            stages: { pulling: 0, termination: 0, installation: 0, commissioning: 0 } 
+                            stages: {} 
                         };
                     }
-                    projectData[model].quantity = formatNum(projectData[model].quantity + qty);
+                    projectData[targetSystem][model].quantity = formatNum(projectData[targetSystem][model].quantity + qty);
                 }
             });
             saveData();
-            renderUI();
         }
 
-        // Plugin to draw text in the center of the doughnut charts
-        const centerTextPlugin = {
+        Chart.register({
             id: 'centerText',
             beforeDraw: function(chart) {
-                if (chart.config.options.elements.center) {
+                if (chart.config.options.elements && chart.config.options.elements.center) {
                     const ctx = chart.ctx;
                     const centerConfig = chart.config.options.elements.center;
                     ctx.save();
-                    const fontSize = (chart.height / 100).toFixed(2);
+                    const fontSize = (chart.height / 114).toFixed(2);
                     ctx.font = "bold " + fontSize + "em sans-serif";
                     ctx.textBaseline = "middle";
                     ctx.fillStyle = "#ffffff";
@@ -327,85 +367,113 @@
                     ctx.restore();
                 }
             }
-        };
+        });
 
-        Chart.register(centerTextPlugin);
+        function updateMasterChart() {
+            let stats = { lighting: 0, it: 0, automation: 0, av: 0, bms: 0 };
+            let totalPossible = 0;
 
-        function drawOrUpdateChart(chartId, done, total, colorStr) {
-            const canvasId = `chart-${chartId}`;
-            const remaining = formatNum(total - done);
-            const percentStr = total > 0 ? ((done / total) * 100).toFixed(0) + '%' : '0%';
+            for (let sys in projectData) {
+                let activeConf = sys === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+                for (let item of Object.values(projectData[sys])) {
+                    totalPossible += item.quantity;
+                    let itemDone = 0;
+                    for (let p in activeConf) {
+                        let val = item.stages[p] || 0;
+                        itemDone += val * activeConf[p].w;
+                    }
+                    stats[sys] += itemDone;
+                }
+            }
 
-            if (chartInstances[chartId]) {
-                chartInstances[chartId].data.datasets[0].data = [done, remaining];
-                chartInstances[chartId].options.elements.center.text = percentStr;
-                chartInstances[chartId].update();
+            let totalDone = stats.lighting + stats.it + stats.automation + stats.av + stats.bms;
+            let remaining = formatNum(totalPossible - totalDone);
+            if (remaining < 0) remaining = 0;
+
+            const percentStr = totalPossible > 0 ? ((totalDone / totalPossible) * 100).toFixed(1) + '%' : '0%';
+            
+            const hexColors = ['#ffeb3b', '#2979ff', '#d500f9', '#ff1744', '#00e676', '#333333'];
+
+            if (overallChartInstance) {
+                overallChartInstance.data.datasets[0].data = [
+                    formatNum(stats.lighting), formatNum(stats.it), formatNum(stats.automation), 
+                    formatNum(stats.av), formatNum(stats.bms), remaining
+                ];
+                overallChartInstance.options.elements.center.text = percentStr;
+                overallChartInstance.update();
             } else {
-                const ctx = document.getElementById(canvasId).getContext('2d');
-                chartInstances[chartId] = new Chart(ctx, {
+                const ctx = document.getElementById('chart-overall').getContext('2d');
+                overallChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Done', 'Remaining'],
-                        datasets: [{ data: [done, remaining], backgroundColor: [colorStr, '#333333'], borderWidth: 0 }]
+                        labels: ['Lighting', 'IT', 'Automation', 'AV', 'BMS', 'Remaining Data'],
+                        datasets: [{ 
+                            data: [
+                                formatNum(stats.lighting), formatNum(stats.it), formatNum(stats.automation), 
+                                formatNum(stats.av), formatNum(stats.bms), remaining
+                            ], 
+                            backgroundColor: hexColors, 
+                            borderWidth: 0 
+                        }]
                     },
                     options: {
                         responsive: true,
                         cutout: '75%',
-                        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                        plugins: { 
+                            legend: { display: true, position: 'bottom', labels: { color: '#f5f5f5', padding: 15, font: {size: 11} } }, 
+                            tooltip: { enabled: true } 
+                        },
                         elements: { center: { text: percentStr } }
                     }
                 });
             }
         }
 
-        function updateAllCharts() {
-            let stats = {
-                totalQty: 0,
-                weightedTotal: 0,
-                weightedDone: 0,
-                pullingDone: 0,
-                terminationDone: 0,
-                installationDone: 0,
-                commissioningDone: 0
-            };
-
-            for (const item of Object.values(projectData)) {
-                stats.totalQty += item.quantity;
-                stats.pullingDone += item.stages.pulling;
-                stats.terminationDone += item.stages.termination;
-                stats.installationDone += item.stages.installation;
-                stats.commissioningDone += item.stages.commissioning;
-
-                // Weighted Math for Overall
-                stats.weightedTotal += item.quantity;
-                stats.weightedDone += (
-                    (item.stages.pulling * 0.30) +
-                    (item.stages.termination * 0.30) +
-                    (item.stages.installation * 0.30) +
-                    (item.stages.commissioning * 0.10)
-                );
+        function hasAnyData() {
+            for (let sys in projectData) {
+                if (Object.keys(projectData[sys]).length > 0) return true;
             }
+            return false;
+        }
 
-            drawOrUpdateChart('overall', stats.weightedDone, stats.weightedTotal, stageColors.overall);
-            drawOrUpdateChart('pulling', stats.pullingDone, stats.totalQty, stageColors.pulling);
-            drawOrUpdateChart('termination', stats.terminationDone, stats.totalQty, stageColors.termination);
-            drawOrUpdateChart('installation', stats.installationDone, stats.totalQty, stageColors.installation);
-            drawOrUpdateChart('commissioning', stats.commissioningDone, stats.totalQty, stageColors.commissioning);
+        function onSystemChange() {
+            const sysSelector = document.getElementById('activeSystemSelector');
+            const phaseSelector = document.getElementById('activePhaseSelector');
+            const activeSystemId = sysSelector.value;
+            
+            const currentPhaseVal = phaseSelector.value;
+            const activeConf = activeSystemId === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+            
+            phaseSelector.innerHTML = '';
+            for (let key in activeConf) {
+                let opt = document.createElement('option');
+                opt.value = key;
+                // Populating dropdown text without the percentage
+                opt.textContent = activeConf[key].text;
+                phaseSelector.appendChild(opt);
+            }
+            
+            if (activeConf[currentPhaseVal]) phaseSelector.value = currentPhaseVal;
+            else phaseSelector.value = 'pulling';
+
+            document.getElementById('viewControlBar').style.borderColor = systemColors[activeSystemId];
+            sysSelector.style.color = systemColors[activeSystemId];
+
+            renderActiveTable();
         }
 
         function renderUI() {
-            const hasData = Object.keys(projectData).length > 0;
+            const hasData = hasAnyData();
             
             document.getElementById('initialUpload').style.display = hasData ? 'none' : 'block';
-            document.getElementById('dashboardCharts').style.display = hasData ? 'grid' : 'none';
+            document.getElementById('dashboardContainer').style.display = hasData ? 'flex' : 'none';
             document.getElementById('viewControlBar').style.display = hasData ? 'flex' : 'none';
-            document.getElementById('appendUpload').style.display = hasData ? 'flex' : 'none';
             document.getElementById('exportBtn').style.display = hasData ? 'block' : 'none';
             document.getElementById('clearBtn').style.display = hasData ? 'block' : 'none';
             
             if (hasData) {
-                updateAllCharts();
-                renderActiveTable(); 
+                updateMasterChart();
+                onSystemChange(); 
             } else {
                 document.getElementById('tableContainer').innerHTML = '';
             }
@@ -413,14 +481,26 @@
 
         function renderActiveTable() {
             const container = document.getElementById('tableContainer');
-            const selector = document.getElementById('activeViewSelector');
-            const activeStageId = selector.value;
-            const activeStageTitle = selector.options[selector.selectedIndex].text;
-            const stageColor = stageColors[activeStageId];
+            
+            const sysSelector = document.getElementById('activeSystemSelector');
+            const phaseSelector = document.getElementById('activePhaseSelector');
+            
+            const activeSystemId = sysSelector.value;
+            const activeSystemTitle = sysSelector.options[sysSelector.selectedIndex].text.replace(/↳ |[0-9]\. /g, '');
+            
+            const activePhaseId = phaseSelector.value;
+            // No split needed now since percentage is removed from dropdown
+            const activePhaseTitle = phaseSelector.options[phaseSelector.selectedIndex].text;
+            
+            const activeColor = systemColors[activeSystemId];
+            const activeData = projectData[activeSystemId] || {};
 
             let tableHTML = `
-                <div class="table-card">
-                    <h3 style="color: ${stageColor}">Current View: ${activeStageTitle}</h3>
+                <div class="table-card" style="border-top: 3px solid ${activeColor}">
+                    <h3 style="color: ${activeColor}">
+                        <span>${activeSystemTitle}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.9rem; align-self: flex-end; font-weight: normal;">Viewing: ${activePhaseTitle}</span>
+                    </h3>
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
@@ -437,94 +517,119 @@
                             <tbody>
             `;
 
-            for (const [model, item] of Object.entries(projectData)) {
-                let qty = formatNum(item.quantity);
-                let done = formatNum(item.stages[activeStageId]);
-                let remaining = formatNum(qty - done);
-                
-                let isComplete = remaining <= 0;
-                let progressPercent = qty > 0 ? Math.min(((done / qty) * 100), 100).toFixed(0) : 0;
+            if (Object.keys(activeData).length === 0) {
+                tableHTML += `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${activeSystemTitle} yet. Upload a BOM above.</td></tr>`;
+            } else {
+                for (const [model, item] of Object.entries(activeData)) {
+                    let qty = formatNum(item.quantity);
+                    let done = formatNum(item.stages[activePhaseId] || 0);
+                    let remaining = formatNum(qty - done);
+                    
+                    let isComplete = remaining <= 0;
+                    let progressPercent = qty > 0 ? Math.min(((done / qty) * 100), 100).toFixed(0) : 0;
 
-                tableHTML += `
-                    <tr class="${isComplete ? 'completed-row' : ''}">
-                        <td style="font-weight: 500;">${model}</td>
-                        <td>${qty}</td>
-                        <td style="color: var(--text-secondary);">${item.unit}</td>
-                        <td class="stage-val" style="color: ${stageColor}">${done}</td>
-                        <td class="rem-val">${remaining}</td>
-                        <td>
-                            <span style="font-size: 0.8rem; font-weight: bold;">${progressPercent}%</span>
-                            <div class="progress-container">
-                                <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${stageColor};"></div>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="input-group">
-                                <input type="number" step="0.01" id="input-${activeStageId}-${model}" placeholder="Qty">
-                                <button class="primary" style="background-color: ${stageColor}; color: #121212" onclick="updateWork('${model}', '${activeStageId}')">Log</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                    tableHTML += `
+                        <tr class="${isComplete ? 'completed-row' : ''}">
+                            <td style="font-weight: 500;">${model}</td>
+                            <td>${qty}</td>
+                            <td style="color: var(--text-secondary);">${item.unit}</td>
+                            <td class="stage-val" style="color: ${activeColor}">${done}</td>
+                            <td class="rem-val">${remaining}</td>
+                            <td>
+                                <span style="font-size: 0.8rem; font-weight: bold;">${progressPercent}%</span>
+                                <div class="progress-container">
+                                    <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${activeColor};"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" id="input-${model}" placeholder="Qty">
+                                    <button class="primary" style="background-color: ${activeColor};" onclick="updateWork('${activeSystemId}', '${model}', '${activePhaseId}')">Log</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
             }
 
             tableHTML += `</tbody></table></div></div>`;
             container.innerHTML = tableHTML;
         }
 
-        function updateWork(model, stage) {
-            const inputField = document.getElementById(`input-${stage}-${model}`);
+        function updateWork(system, model, phase) {
+            const inputField = document.getElementById(`input-${model}`);
             const addedQty = parseFloat(inputField.value);
 
             if (isNaN(addedQty)) return;
 
-            let newTotal = formatNum(projectData[model].stages[stage] + addedQty);
-            let maxQty = formatNum(projectData[model].quantity);
+            let currentVal = projectData[system][model].stages[phase] || 0;
+            let newTotal = formatNum(currentVal + addedQty);
+            let maxQty = formatNum(projectData[system][model].quantity);
             
             if (newTotal < 0) newTotal = 0;
             if (newTotal > maxQty) newTotal = maxQty;
 
-            projectData[model].stages[stage] = newTotal;
+            projectData[system][model].stages[phase] = newTotal;
             
             saveData();
             renderActiveTable(); 
-            updateAllCharts();     
+            updateMasterChart();     
         }
 
         function exportReport() {
-            const exportArray = Object.keys(projectData).map(model => {
-                const item = projectData[model];
-                const itemProgress = formatNum((item.stages.pulling / item.quantity) * 30 + (item.stages.termination / item.quantity) * 30 + (item.stages.installation / item.quantity) * 30 + (item.stages.commissioning / item.quantity) * 10);
-                
-                return {
-                    "Fixture/Model Reference": model,
-                    "Total Quantity": formatNum(item.quantity),
-                    "Unit": item.unit,
-                    "Cable Pulling Done": formatNum(item.stages.pulling),
-                    "Cable Pulling Remaining": formatNum(item.quantity - item.stages.pulling),
-                    "Termination Done": formatNum(item.stages.termination),
-                    "Termination Remaining": formatNum(item.quantity - item.stages.termination),
-                    "Installation Done": formatNum(item.stages.installation),
-                    "Installation Remaining": formatNum(item.quantity - item.stages.installation),
-                    "Commissioning Done": formatNum(item.stages.commissioning),
-                    "Commissioning Remaining": formatNum(item.quantity - item.stages.commissioning),
-                    "Overall Progress (%)": itemProgress + "%"
-                };
-            });
-
-            const ws = XLSX.utils.json_to_sheet(exportArray);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Deployment Dashboard");
+            
+            const systemNames = { lighting: "Lighting", it: "IT", automation: "Automation", av: "AV", bms: "BMS" };
+
+            for (let sysKey in projectData) {
+                if (Object.keys(projectData[sysKey]).length === 0) continue;
+
+                const activeConf = sysKey === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+
+                const exportArray = Object.keys(projectData[sysKey]).map(model => {
+                    const item = projectData[sysKey][model];
+                    
+                    let rowData = {
+                        "Model Reference": model,
+                        "Total Quantity": formatNum(item.quantity),
+                        "Unit": item.unit
+                    };
+
+                    let overallItemProgress = 0;
+
+                    for(let p in activeConf) {
+                        let done = item.stages[p] || 0;
+                        overallItemProgress += (done / item.quantity) * activeConf[p].w;
+                        
+                        rowData[`${activeConf[p].text} Done`] = formatNum(done);
+                        rowData[`${activeConf[p].text} Rem`] = formatNum(item.quantity - done);
+                    }
+
+                    rowData["Overall Progress (%)"] = formatNum(overallItemProgress * 100) + "%";
+                    return rowData;
+                });
+
+                const ws = XLSX.utils.json_to_sheet(exportArray);
+                XLSX.utils.book_append_sheet(wb, ws, systemNames[sysKey]);
+            }
+
+            if(wb.SheetNames.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+
             const dateStr = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Chronos_Report_${dateStr}.xlsx`);
+            XLSX.writeFile(wb, `Chronos_Master_Deployment_${dateStr}.xlsx`);
         }
 
         function clearData() {
-            if(confirm("Are you sure you want to delete all data? This cannot be undone.")) {
-                projectData = {};
+            if(confirm("Are you sure you want to delete ALL data across Lighting, IT, AV, Automation, and BMS? This cannot be undone.")) {
+                projectData = { lighting: {}, it: {}, automation: {}, av: {}, bms: {} };
                 localStorage.removeItem('deploymentTrackerData');
-                Object.values(chartInstances).forEach(chart => chart.destroy());
-                chartInstances = {};
+                if (overallChartInstance) {
+                    overallChartInstance.destroy();
+                    overallChartInstance = null;
+                }
                 renderUI();
             }
         }
