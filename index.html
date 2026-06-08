@@ -618,8 +618,15 @@
                 return;
             }
 
-            const dateStr = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Chronos_Master_Deployment_${dateStr}.xlsx`);
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const secs = String(now.getSeconds()).padStart(2, '0');
+            const timeStamp = `${year}-${month}-${day}_${hours}-${mins}-${secs}`;
+            XLSX.writeFile(wb, `Chronos_Master_Deployment_${timeStamp}.xlsx`);
         }
 
         function clearData() {
