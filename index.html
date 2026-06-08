@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chronos Deployment Dashboard</title>
+    <title>Chronos Master Dashboard</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
@@ -192,7 +192,7 @@
         </div>
         
         <div class="upload-card">
-            <h3 style="margin-top: 0; color: var(--text-primary);">Add Equipment (BOM)</h3>
+            <h3 style="margin-top: 0; color: var(--text-primary);">Add Equipment (BOM) or Restore Backup</h3>
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                 <select id="uploadTargetSystem">
                     <option value="lighting">Lighting</option>
@@ -205,12 +205,12 @@
                 </select>
                 <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
             </div>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">Select the target system discipline, then upload the Excel file.</p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">Select the target discipline and upload a BOM. (If restoring an exported backup, the system ignores the dropdown and sorts automatically).</p>
         </div>
     </div>
 
     <div class="upload-card" id="initialUpload">
-        <h3 style="margin-top: 0;">Initialize Project</h3>
+        <h3 style="margin-top: 0;">Initialize Project or Restore Backup</h3>
         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
             <select id="uploadTargetSystemInitial">
                 <option value="lighting">Lighting</option>
@@ -223,6 +223,7 @@
             </select>
             <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
         </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">If restoring a previous project, simply select your exported Excel file above.</p>
     </div>
 
     <div class="view-control-bar" id="viewControlBar" style="display: none;">
@@ -298,38 +299,63 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            const targetSystem = e.target.id === 'excelUploadInitial' 
-                ? document.getElementById('uploadTargetSystemInitial').value 
-                : document.getElementById('uploadTargetSystem').value;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                processData(jsonData, targetSystem);
+                // Map Sheet names to system keys
+                const knownSystems = { "Lighting": "lighting", "IT": "it", "Automation": "automation", "AV": "av", "BMS": "bms" };
+                
+                let isMasterRestore = false;
+                workbook.SheetNames.forEach(sheetName => {
+                    if (knownSystems[sheetName]) isMasterRestore = true;
+                });
+
+                if (isMasterRestore) {
+                    // Process as a Restore Backup (Reads all sheets automatically)
+                    workbook.SheetNames.forEach(sheetName => {
+                        if (knownSystems[sheetName]) {
+                            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                            processData(jsonData, knownSystems[sheetName], true); 
+                        }
+                    });
+                    
+                    document.getElementById('activeSystemSelector').value = knownSystems[workbook.SheetNames[0]];
+                    alert("Master Project Backup Successfully Restored!");
+                    
+                } else {
+                    // Process as standard fresh BOM upload (Reads 1st sheet only)
+                    const targetSystem = e.target.id === 'excelUploadInitial' 
+                        ? document.getElementById('uploadTargetSystemInitial').value 
+                        : document.getElementById('uploadTargetSystem').value;
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    processData(jsonData, targetSystem, false);
+                    document.getElementById('activeSystemSelector').value = targetSystem;
+                }
                 
                 document.getElementById('excelUpload').value = '';
                 document.getElementById('excelUploadInitial').value = '';
                 
-                document.getElementById('activeSystemSelector').value = targetSystem;
                 onSystemChange(); 
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function processData(data, targetSystem) {
+        function processData(data, targetSystem, isRestore) {
             if (!projectData[targetSystem]) projectData[targetSystem] = {};
+
+            const activeConf = targetSystem === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
 
             data.forEach(row => {
                 let normalizedRow = {};
                 for (let key in row) { normalizedRow[key.toLowerCase().trim()] = row[key]; }
 
-                let model = normalizedRow['fixture reference'] || normalizedRow['future reference'] || 
+                let model = normalizedRow['fixture reference'] || normalizedRow['model reference'] || normalizedRow['future reference'] || 
                             normalizedRow['model number'] || normalizedRow['model number/future reference'] || 
                             normalizedRow['model'];
-                let qty = parseFloat(normalizedRow['quantity'] || normalizedRow['qty']);
+                            
+                let qty = parseFloat(normalizedRow['total quantity'] || normalizedRow['quantity'] || normalizedRow['qty']);
                 let unit = normalizedRow['unit'] || normalizedRow['uom'] || "ea";
 
                 if (model && !isNaN(qty)) {
@@ -344,6 +370,19 @@
                         };
                     }
                     projectData[targetSystem][model].quantity = formatNum(projectData[targetSystem][model].quantity + qty);
+
+                    // Restore Logic for Progress Bars
+                    if (isRestore) {
+                        for (let p in activeConf) {
+                            let expectedExportKey = `${activeConf[p].text} Done`.toLowerCase().trim();
+                            let importedDone = parseFloat(normalizedRow[expectedExportKey]);
+
+                            if (!isNaN(importedDone) && importedDone > 0) {
+                                let currentVal = projectData[targetSystem][model].stages[p] || 0;
+                                projectData[targetSystem][model].stages[p] = formatNum(currentVal + importedDone);
+                            }
+                        }
+                    }
                 }
             });
             saveData();
@@ -448,8 +487,7 @@
             for (let key in activeConf) {
                 let opt = document.createElement('option');
                 opt.value = key;
-                // Populating dropdown text without the percentage
-                opt.textContent = activeConf[key].text;
+                opt.textContent = activeConf[key].text; // Percentage removed here
                 phaseSelector.appendChild(opt);
             }
             
@@ -489,7 +527,6 @@
             const activeSystemTitle = sysSelector.options[sysSelector.selectedIndex].text.replace(/↳ |[0-9]\. /g, '');
             
             const activePhaseId = phaseSelector.value;
-            // No split needed now since percentage is removed from dropdown
             const activePhaseTitle = phaseSelector.options[phaseSelector.selectedIndex].text;
             
             const activeColor = systemColors[activeSystemId];
@@ -618,6 +655,7 @@
                 return;
             }
 
+            // Timestamp formatting logic
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -625,6 +663,7 @@
             const hours = String(now.getHours()).padStart(2, '0');
             const mins = String(now.getMinutes()).padStart(2, '0');
             const secs = String(now.getSeconds()).padStart(2, '0');
+            
             const timeStamp = `${year}-${month}-${day}_${hours}-${mins}-${secs}`;
             XLSX.writeFile(wb, `Chronos_Master_Deployment_${timeStamp}.xlsx`);
         }
