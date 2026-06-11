@@ -314,7 +314,7 @@
                 document.getElementById('excelUploadInitial').value = '';
                 
                 document.getElementById('activeSystemSelector').value = targetSystem;
-                onSystemChange(); 
+                renderUI();
             };
             reader.readAsArrayBuffer(file);
         }
