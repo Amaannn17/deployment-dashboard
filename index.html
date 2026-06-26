@@ -240,7 +240,7 @@
             bms: 'var(--c-bms)'
         };
 
-        // Configurations for the exact phases requested
+        // Configurations for the exact phases
         const phaseConfig = {
             lighting: {
                 pulling: { text: '1. Cable Pulling', w: 0.3 },
@@ -574,6 +574,9 @@
                     let isComplete = remaining <= 0;
                     let progressPercent = qty > 0 ? Math.min(((done / qty) * 100), 100).toFixed(0) : 0;
 
+                    // ENCODE THE MODEL NAME TO PROTECT AGAINST QUOTES
+                    let safeModel = encodeURIComponent(model).replace(/'/g, "%27");
+
                     tableHTML += `
                         <tr class="${isComplete ? 'completed-row' : ''}">
                             <td style="font-weight: 500;">${model}</td>
@@ -589,8 +592,8 @@
                             </td>
                             <td>
                                 <div class="input-group">
-                                    <input type="number" step="0.01" id="input-${model}" placeholder="Qty">
-                                    <button class="primary" style="background-color: ${activeColor};" onclick="updateWork('${activeSystemId}', '${model}', '${activePhaseId}')">Log</button>
+                                    <input type="number" step="0.01" id="input-${safeModel}" placeholder="Qty">
+                                    <button class="primary" style="background-color: ${activeColor};" onclick="updateWork('${activeSystemId}', decodeURIComponent('${safeModel}'), '${activePhaseId}')">Log</button>
                                 </div>
                             </td>
                         </tr>
@@ -603,7 +606,9 @@
         }
 
         function updateWork(system, model, phase) {
-            const inputField = document.getElementById(`input-${model}`);
+            // Apply the same encoding to find the correct input box
+            let safeModel = encodeURIComponent(model).replace(/'/g, "%27");
+            const inputField = document.getElementById(`input-${safeModel}`);
             const addedQty = parseFloat(inputField.value);
 
             if (isNaN(addedQty)) return;
