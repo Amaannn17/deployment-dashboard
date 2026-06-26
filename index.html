@@ -23,13 +23,11 @@
             --border: #333333;
             --card-bg: #1a1a1a;
             
-            /* System Color Themes */
+            /* Unified System Color Themes */
             --c-lighting: #ffeb3b;   /* Yellow */
-            --c-it: #2979ff;         /* Blue */
-            --c-automation: #d500f9; /* Purple */
-            --c-av: #ff1744;         /* Red/Pink */
+            --c-cabling: #2979ff;    /* Blue */
             --c-bms: #00e676;        /* Green */
-            --c-rem: #333333;        /* Dark Grey for Remaining */
+            --c-rem: #333333;        /* Dark Grey */
         }
 
         body {
@@ -81,7 +79,6 @@
             justify-content: center;
         }
 
-        /* View & System Selector Bar */
         .view-control-bar {
             background-color: var(--surface);
             border: 1px solid var(--border);
@@ -156,7 +153,6 @@
             width: 80px;
         }
         
-        /* Progress Bar in Table */
         .progress-container {
             width: 100px;
             background-color: var(--bg-dark);
@@ -168,7 +164,6 @@
         }
         .progress-bar { height: 100%; transition: width 0.4s ease; }
 
-        optgroup { color: var(--text-secondary); font-style: normal; font-weight: bold; }
         option { color: var(--text-primary); }
     </style>
 </head>
@@ -177,7 +172,7 @@
     <div class="header">
         <div>
             <h2 style="margin: 0;">Chronos Master Dashboard</h2>
-            <p style="color: var(--text-secondary); margin-top: 5px;">Multi-Discipline Project Tracking</p>
+            <p style="color: var(--text-secondary); margin-top: 5px;">Unified Multi-Discipline Tracking</p>
         </div>
         <div class="controls">
             <button class="primary" style="background-color: #f5f5f5;" onclick="exportReport()" id="exportBtn" style="display: none;">Export Excel Report</button>
@@ -196,11 +191,7 @@
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                 <select id="uploadTargetSystem">
                     <option value="lighting">Lighting</option>
-                    <optgroup label="Structured Cabling">
-                        <option value="it">↳ IT</option>
-                        <option value="automation">↳ Automation</option>
-                        <option value="av">↳ AV</option>
-                    </optgroup>
+                    <option value="cabling">Structured Cabling</option>
                     <option value="bms">BMS</option>
                 </select>
                 <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
@@ -214,11 +205,7 @@
         <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
             <select id="uploadTargetSystemInitial">
                 <option value="lighting">Lighting</option>
-                <optgroup label="Structured Cabling">
-                    <option value="it">↳ IT</option>
-                    <option value="automation">↳ Automation</option>
-                    <option value="av">↳ AV</option>
-                </optgroup>
+                <option value="cabling">Structured Cabling</option>
                 <option value="bms">BMS</option>
             </select>
             <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
@@ -231,11 +218,7 @@
         
         <select id="activeSystemSelector" onchange="onSystemChange()">
             <option value="lighting">1. Lighting</option>
-            <optgroup label="2. Structured Cabling">
-                <option value="it">↳ IT</option>
-                <option value="automation">↳ Automation</option>
-                <option value="av">↳ AV</option>
-            </optgroup>
+            <option value="cabling">2. Structured Cabling</option>
             <option value="bms">3. BMS</option>
         </select>
 
@@ -248,19 +231,16 @@
     <div id="tableContainer"></div>
 
     <script>
-        let projectData = { lighting: {}, it: {}, automation: {}, av: {}, bms: {} };
+        let projectData = { lighting: {}, cabling: {}, bms: {} };
         let overallChartInstance = null;
 
-        // Color Themes matching the Pie Chart slices
         const systemColors = {
             lighting: 'var(--c-lighting)',
-            it: 'var(--c-it)',
-            automation: 'var(--c-automation)',
-            av: 'var(--c-av)',
+            cabling: 'var(--c-cabling)',
             bms: 'var(--c-bms)'
         };
 
-        // Distinct Phase Configurations
+        // Configurations for the exact phases requested
         const phaseConfig = {
             lighting: {
                 pulling: { text: '1. Cable Pulling', w: 0.3 },
@@ -268,11 +248,15 @@
                 installation: { text: '3. Installation', w: 0.3 },
                 commissioning: { text: '4. Commissioning', w: 0.1 }
             },
-            other: {
-                pulling: { text: '1. Cable Pulling', w: 0.3 },
-                termination: { text: '2. Termination', w: 0.3 },
-                commissioning: { text: '3. Testing & Commissioning', w: 0.3 },
-                drivers: { text: '4. Install Drivers', w: 0.1 }
+            cabling: {
+                pulling: { text: '1. Cable Pulling', w: 0.35 },
+                termination: { text: '2. Termination', w: 0.35 },
+                commissioning: { text: '3. Testing & Commissioning', w: 0.30 }
+            },
+            bms: {
+                pulling: { text: '1. Cable Pulling', w: 0.35 },
+                termination: { text: '2. Termination', w: 0.35 },
+                commissioning: { text: '3. Testing & Commissioning', w: 0.30 }
             }
         };
 
@@ -285,7 +269,37 @@
         window.addEventListener('DOMContentLoaded', () => {
             const savedData = localStorage.getItem('deploymentTrackerData');
             if (savedData) {
-                projectData = JSON.parse(savedData);
+                let parsed = JSON.parse(savedData);
+                
+                // Background Migration: Merge IT/AV/Automation into Cabling safely
+                if (parsed.it || parsed.automation || parsed.av) {
+                    if (!parsed.cabling) parsed.cabling = {};
+                    ['it', 'automation', 'av'].forEach(sys => {
+                        if (parsed[sys]) {
+                            for (let model in parsed[sys]) {
+                                if (!parsed.cabling[model]) {
+                                    parsed.cabling[model] = parsed[sys][model];
+                                } else {
+                                    parsed.cabling[model].quantity += parsed[sys][model].quantity;
+                                    for (let p in parsed[sys][model].stages) {
+                                        parsed.cabling[model].stages[p] = (parsed.cabling[model].stages[p] || 0) + parsed[sys][model].stages[p];
+                                    }
+                                }
+                            }
+                            delete parsed[sys];
+                        }
+                    });
+                    projectData = parsed;
+                    saveData();
+                } else {
+                    projectData = parsed;
+                }
+                
+                // Ensure missing main categories exist
+                if (!projectData.lighting) projectData.lighting = {};
+                if (!projectData.cabling) projectData.cabling = {};
+                if (!projectData.bms) projectData.bms = {};
+
                 renderUI();
             }
         });
@@ -304,8 +318,7 @@
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
                 
-                // Map Sheet names to system keys
-                const knownSystems = { "Lighting": "lighting", "IT": "it", "Automation": "automation", "AV": "av", "BMS": "bms" };
+                const knownSystems = { "Lighting": "lighting", "Structured Cabling": "cabling", "BMS": "bms" };
                 
                 let isMasterRestore = false;
                 workbook.SheetNames.forEach(sheetName => {
@@ -313,7 +326,6 @@
                 });
 
                 if (isMasterRestore) {
-                    // Process as a Restore Backup (Reads all sheets automatically)
                     workbook.SheetNames.forEach(sheetName => {
                         if (knownSystems[sheetName]) {
                             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -325,7 +337,6 @@
                     alert("Master Project Backup Successfully Restored!");
                     
                 } else {
-                    // Process as standard fresh BOM upload (Reads 1st sheet only)
                     const targetSystem = e.target.id === 'excelUploadInitial' 
                         ? document.getElementById('uploadTargetSystemInitial').value 
                         : document.getElementById('uploadTargetSystem').value;
@@ -345,7 +356,7 @@
         function processData(data, targetSystem, isRestore) {
             if (!projectData[targetSystem]) projectData[targetSystem] = {};
 
-            const activeConf = targetSystem === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+            const activeConf = phaseConfig[targetSystem];
 
             data.forEach(row => {
                 let normalizedRow = {};
@@ -371,7 +382,6 @@
                     }
                     projectData[targetSystem][model].quantity = formatNum(projectData[targetSystem][model].quantity + qty);
 
-                    // Restore Logic for Progress Bars
                     if (isRestore) {
                         for (let p in activeConf) {
                             let expectedExportKey = `${activeConf[p].text} Done`.toLowerCase().trim();
@@ -409,11 +419,13 @@
         });
 
         function updateMasterChart() {
-            let stats = { lighting: 0, it: 0, automation: 0, av: 0, bms: 0 };
+            let stats = { lighting: 0, cabling: 0, bms: 0 };
             let totalPossible = 0;
 
             for (let sys in projectData) {
-                let activeConf = sys === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+                let activeConf = phaseConfig[sys];
+                if (!activeConf) continue;
+                
                 for (let item of Object.values(projectData[sys])) {
                     totalPossible += item.quantity;
                     let itemDone = 0;
@@ -425,18 +437,16 @@
                 }
             }
 
-            let totalDone = stats.lighting + stats.it + stats.automation + stats.av + stats.bms;
+            let totalDone = stats.lighting + stats.cabling + stats.bms;
             let remaining = formatNum(totalPossible - totalDone);
             if (remaining < 0) remaining = 0;
 
             const percentStr = totalPossible > 0 ? ((totalDone / totalPossible) * 100).toFixed(1) + '%' : '0%';
-            
-            const hexColors = ['#ffeb3b', '#2979ff', '#d500f9', '#ff1744', '#00e676', '#333333'];
+            const hexColors = ['#ffeb3b', '#2979ff', '#00e676', '#333333'];
 
             if (overallChartInstance) {
                 overallChartInstance.data.datasets[0].data = [
-                    formatNum(stats.lighting), formatNum(stats.it), formatNum(stats.automation), 
-                    formatNum(stats.av), formatNum(stats.bms), remaining
+                    formatNum(stats.lighting), formatNum(stats.cabling), formatNum(stats.bms), remaining
                 ];
                 overallChartInstance.options.elements.center.text = percentStr;
                 overallChartInstance.update();
@@ -445,11 +455,10 @@
                 overallChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Lighting', 'IT', 'Automation', 'AV', 'BMS', 'Remaining Data'],
+                        labels: ['Lighting', 'Structured Cabling', 'BMS', 'Remaining Data'],
                         datasets: [{ 
                             data: [
-                                formatNum(stats.lighting), formatNum(stats.it), formatNum(stats.automation), 
-                                formatNum(stats.av), formatNum(stats.bms), remaining
+                                formatNum(stats.lighting), formatNum(stats.cabling), formatNum(stats.bms), remaining
                             ], 
                             backgroundColor: hexColors, 
                             borderWidth: 0 
@@ -481,13 +490,13 @@
             const activeSystemId = sysSelector.value;
             
             const currentPhaseVal = phaseSelector.value;
-            const activeConf = activeSystemId === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+            const activeConf = phaseConfig[activeSystemId];
             
             phaseSelector.innerHTML = '';
             for (let key in activeConf) {
                 let opt = document.createElement('option');
                 opt.value = key;
-                opt.textContent = activeConf[key].text; // Percentage removed here
+                opt.textContent = activeConf[key].text;
                 phaseSelector.appendChild(opt);
             }
             
@@ -524,7 +533,7 @@
             const phaseSelector = document.getElementById('activePhaseSelector');
             
             const activeSystemId = sysSelector.value;
-            const activeSystemTitle = sysSelector.options[sysSelector.selectedIndex].text.replace(/↳ |[0-9]\. /g, '');
+            const activeSystemTitle = sysSelector.options[sysSelector.selectedIndex].text.replace(/[0-9]\. /g, '');
             
             const activePhaseId = phaseSelector.value;
             const activePhaseTitle = phaseSelector.options[phaseSelector.selectedIndex].text;
@@ -616,12 +625,12 @@
         function exportReport() {
             const wb = XLSX.utils.book_new();
             
-            const systemNames = { lighting: "Lighting", it: "IT", automation: "Automation", av: "AV", bms: "BMS" };
+            const systemNames = { lighting: "Lighting", cabling: "Structured Cabling", bms: "BMS" };
 
             for (let sysKey in projectData) {
                 if (Object.keys(projectData[sysKey]).length === 0) continue;
 
-                const activeConf = sysKey === 'lighting' ? phaseConfig.lighting : phaseConfig.other;
+                const activeConf = phaseConfig[sysKey];
 
                 const exportArray = Object.keys(projectData[sysKey]).map(model => {
                     const item = projectData[sysKey][model];
@@ -655,7 +664,6 @@
                 return;
             }
 
-            // Timestamp formatting logic
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -669,8 +677,8 @@
         }
 
         function clearData() {
-            if(confirm("Are you sure you want to delete ALL data across Lighting, IT, AV, Automation, and BMS? This cannot be undone.")) {
-                projectData = { lighting: {}, it: {}, automation: {}, av: {}, bms: {} };
+            if(confirm("Are you sure you want to delete ALL data across Lighting, Structured Cabling, and BMS? This cannot be undone.")) {
+                projectData = { lighting: {}, cabling: {}, bms: {} };
                 localStorage.removeItem('deploymentTrackerData');
                 if (overallChartInstance) {
                     overallChartInstance.destroy();
