@@ -566,6 +566,7 @@
             if (Object.keys(activeData).length === 0) {
                 tableHTML += `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${activeSystemTitle} yet. Upload a BOM above.</td></tr>`;
             } else {
+                const rows = [];
                 for (const [model, item] of Object.entries(activeData)) {
                     let qty = formatNum(item.quantity);
                     let done = formatNum(item.stages[activePhaseId] || 0);
@@ -577,7 +578,7 @@
                     // ENCODE THE MODEL NAME TO PROTECT AGAINST QUOTES
                     let safeModel = encodeURIComponent(model).replace(/'/g, "%27");
 
-                    tableHTML += `
+                    rows.push(`
                         <tr class="${isComplete ? 'completed-row' : ''}">
                             <td style="font-weight: 500;">${model}</td>
                             <td>${qty}</td>
@@ -597,8 +598,9 @@
                                 </div>
                             </td>
                         </tr>
-                    `;
+                    `);
                 }
+                tableHTML += rows.join("");
             }
 
             tableHTML += `</tbody></table></div></div>`;
