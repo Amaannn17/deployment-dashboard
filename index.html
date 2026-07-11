@@ -261,6 +261,20 @@
         };
 
         const formatNum = (num) => parseFloat(Number(num).toFixed(2));
+        function escapeHTML(str) {
+            if (str == null) return "";
+            if (typeof str !== "string") str = String(str);
+            return str.replace(/[&<>'"]/g,
+                tag => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    "'": "&#39;",
+                    '"': "&quot;"
+                }[tag] || tag)
+            );
+        }
+
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -576,12 +590,14 @@
 
                     // ENCODE THE MODEL NAME TO PROTECT AGAINST QUOTES
                     let safeModel = encodeURIComponent(model).replace(/'/g, "%27");
+                    let escapedModel = escapeHTML(model);
+                    let escapedUnit = escapeHTML(item.unit);
 
                     tableHTML += `
                         <tr class="${isComplete ? 'completed-row' : ''}">
-                            <td style="font-weight: 500;">${model}</td>
+                            <td style="font-weight: 500;">${escapedModel}</td>
                             <td>${qty}</td>
-                            <td style="color: var(--text-secondary);">${item.unit}</td>
+                            <td style="color: var(--text-secondary);">${escapedUnit}</td>
                             <td class="stage-val" style="color: ${activeColor}">${done}</td>
                             <td class="rem-val">${remaining}</td>
                             <td>
