@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chronos Master Dashboard</title>
-    
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <link rel="apple-touch-icon" href="icon.png">
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <style>
         :root {
             --bg-dark: #121212;
@@ -22,7 +22,7 @@
             --danger: #ff5252;
             --border: #333333;
             --card-bg: #1a1a1a;
-            
+
             /* Unified System Color Themes */
             --c-lighting: #ffeb3b;   /* Yellow */
             --c-cabling: #2979ff;    /* Blue */
@@ -124,7 +124,7 @@
         }
 
         select { padding: 9px; font-size: 1rem; }
-        
+
         button.primary { border: none; color: #121212; }
         button.danger { background-color: transparent; color: var(--danger); border-color: var(--danger); }
         button:hover { opacity: 0.8; transform: translateY(-1px); }
@@ -137,13 +137,13 @@
 
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
         th { color: var(--text-secondary); text-transform: uppercase; font-size: 0.8rem; white-space: nowrap;}
-        
+
         .stage-val { font-weight: bold; font-size: 1rem; }
         .rem-val { color: var(--text-primary); }
         .completed-row { opacity: 0.4; }
 
         .input-group { display: flex; align-items: center; gap: 8px; }
-        
+
         input[type="number"] {
             background-color: var(--bg-dark);
             border: 1px solid var(--border);
@@ -152,7 +152,7 @@
             border-radius: 4px;
             width: 80px;
         }
-        
+
         .progress-container {
             width: 100px;
             background-color: var(--bg-dark);
@@ -185,7 +185,7 @@
             <h3 style="margin: 0 0 10px 0; color: var(--text-primary); font-size: 1rem;">Project Completion by System</h3>
             <canvas id="chart-overall"></canvas>
         </div>
-        
+
         <div class="upload-card">
             <h3 style="margin-top: 0; color: var(--text-primary);">Add Equipment (BOM) or Restore Backup</h3>
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -215,7 +215,7 @@
 
     <div class="view-control-bar" id="viewControlBar" style="display: none;">
         <span style="font-size: 1.1rem; font-weight: bold; color: var(--text-secondary);">Active View:</span>
-        
+
         <select id="activeSystemSelector" onchange="onSystemChange()">
             <option value="lighting">1. Lighting</option>
             <option value="cabling">2. Structured Cabling</option>
@@ -260,7 +260,7 @@
             }
         };
 
-        const formatNum = (num) => parseFloat(Number(num).toFixed(2));
+        const formatNum = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -270,7 +270,7 @@
             const savedData = localStorage.getItem('deploymentTrackerData');
             if (savedData) {
                 let parsed = JSON.parse(savedData);
-                
+
                 // Background Migration: Merge IT/AV/Automation into Cabling safely
                 if (parsed.it || parsed.automation || parsed.av) {
                     if (!parsed.cabling) parsed.cabling = {};
@@ -294,7 +294,7 @@
                 } else {
                     projectData = parsed;
                 }
-                
+
                 // Ensure missing main categories exist
                 if (!projectData.lighting) projectData.lighting = {};
                 if (!projectData.cabling) projectData.cabling = {};
@@ -317,9 +317,9 @@
             reader.onload = function(event) {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                
+
                 const knownSystems = { "Lighting": "lighting", "Structured Cabling": "cabling", "BMS": "bms" };
-                
+
                 let isMasterRestore = false;
                 workbook.SheetNames.forEach(sheetName => {
                     if (knownSystems[sheetName]) isMasterRestore = true;
@@ -329,26 +329,26 @@
                     workbook.SheetNames.forEach(sheetName => {
                         if (knownSystems[sheetName]) {
                             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-                            processData(jsonData, knownSystems[sheetName], true); 
+                            processData(jsonData, knownSystems[sheetName], true);
                         }
                     });
-                    
+
                     document.getElementById('activeSystemSelector').value = knownSystems[workbook.SheetNames[0]];
                     alert("Master Project Backup Successfully Restored!");
-                    
+
                 } else {
-                    const targetSystem = e.target.id === 'excelUploadInitial' 
-                        ? document.getElementById('uploadTargetSystemInitial').value 
+                    const targetSystem = e.target.id === 'excelUploadInitial'
+                        ? document.getElementById('uploadTargetSystemInitial').value
                         : document.getElementById('uploadTargetSystem').value;
                     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     processData(jsonData, targetSystem, false);
                     document.getElementById('activeSystemSelector').value = targetSystem;
                 }
-                
+
                 document.getElementById('excelUpload').value = '';
                 document.getElementById('excelUploadInitial').value = '';
-                
-                onSystemChange(); 
+
+                onSystemChange();
             };
             reader.readAsArrayBuffer(file);
         }
@@ -362,22 +362,22 @@
                 let normalizedRow = {};
                 for (let key in row) { normalizedRow[key.toLowerCase().trim()] = row[key]; }
 
-                let model = normalizedRow['fixture reference'] || normalizedRow['model reference'] || normalizedRow['future reference'] || 
-                            normalizedRow['model number'] || normalizedRow['model number/future reference'] || 
+                let model = normalizedRow['fixture reference'] || normalizedRow['model reference'] || normalizedRow['future reference'] ||
+                            normalizedRow['model number'] || normalizedRow['model number/future reference'] ||
                             normalizedRow['model'];
-                            
+
                 let qty = parseFloat(normalizedRow['total quantity'] || normalizedRow['quantity'] || normalizedRow['qty']);
                 let unit = normalizedRow['unit'] || normalizedRow['uom'] || "ea";
 
                 if (model && !isNaN(qty)) {
                     model = String(model).trim();
-                    qty = formatNum(qty); 
+                    qty = formatNum(qty);
 
                     if (!projectData[targetSystem][model]) {
-                        projectData[targetSystem][model] = { 
-                            quantity: 0, 
-                            unit: unit, 
-                            stages: {} 
+                        projectData[targetSystem][model] = {
+                            quantity: 0,
+                            unit: unit,
+                            stages: {}
                         };
                     }
                     projectData[targetSystem][model].quantity = formatNum(projectData[targetSystem][model].quantity + qty);
@@ -425,7 +425,7 @@
             for (let sys in projectData) {
                 let activeConf = phaseConfig[sys];
                 if (!activeConf) continue;
-                
+
                 for (let item of Object.values(projectData[sys])) {
                     totalPossible += item.quantity;
                     let itemDone = 0;
@@ -456,20 +456,20 @@
                     type: 'doughnut',
                     data: {
                         labels: ['Lighting', 'Structured Cabling', 'BMS', 'Remaining Data'],
-                        datasets: [{ 
+                        datasets: [{
                             data: [
                                 formatNum(stats.lighting), formatNum(stats.cabling), formatNum(stats.bms), remaining
-                            ], 
-                            backgroundColor: hexColors, 
-                            borderWidth: 0 
+                            ],
+                            backgroundColor: hexColors,
+                            borderWidth: 0
                         }]
                     },
                     options: {
                         responsive: true,
                         cutout: '75%',
-                        plugins: { 
-                            legend: { display: true, position: 'bottom', labels: { color: '#f5f5f5', padding: 15, font: {size: 11} } }, 
-                            tooltip: { enabled: true } 
+                        plugins: {
+                            legend: { display: true, position: 'bottom', labels: { color: '#f5f5f5', padding: 15, font: {size: 11} } },
+                            tooltip: { enabled: true }
                         },
                         elements: { center: { text: percentStr } }
                     }
@@ -488,10 +488,10 @@
             const sysSelector = document.getElementById('activeSystemSelector');
             const phaseSelector = document.getElementById('activePhaseSelector');
             const activeSystemId = sysSelector.value;
-            
+
             const currentPhaseVal = phaseSelector.value;
             const activeConf = phaseConfig[activeSystemId];
-            
+
             phaseSelector.innerHTML = '';
             for (let key in activeConf) {
                 let opt = document.createElement('option');
@@ -499,7 +499,7 @@
                 opt.textContent = activeConf[key].text;
                 phaseSelector.appendChild(opt);
             }
-            
+
             if (activeConf[currentPhaseVal]) phaseSelector.value = currentPhaseVal;
             else phaseSelector.value = 'pulling';
 
@@ -511,16 +511,16 @@
 
         function renderUI() {
             const hasData = hasAnyData();
-            
+
             document.getElementById('initialUpload').style.display = hasData ? 'none' : 'block';
             document.getElementById('dashboardContainer').style.display = hasData ? 'flex' : 'none';
             document.getElementById('viewControlBar').style.display = hasData ? 'flex' : 'none';
             document.getElementById('exportBtn').style.display = hasData ? 'block' : 'none';
             document.getElementById('clearBtn').style.display = hasData ? 'block' : 'none';
-            
+
             if (hasData) {
                 updateMasterChart();
-                onSystemChange(); 
+                onSystemChange();
             } else {
                 document.getElementById('tableContainer').innerHTML = '';
             }
@@ -528,16 +528,16 @@
 
         function renderActiveTable() {
             const container = document.getElementById('tableContainer');
-            
+
             const sysSelector = document.getElementById('activeSystemSelector');
             const phaseSelector = document.getElementById('activePhaseSelector');
-            
+
             const activeSystemId = sysSelector.value;
             const activeSystemTitle = sysSelector.options[sysSelector.selectedIndex].text.replace(/[0-9]\. /g, '');
-            
+
             const activePhaseId = phaseSelector.value;
             const activePhaseTitle = phaseSelector.options[phaseSelector.selectedIndex].text;
-            
+
             const activeColor = systemColors[activeSystemId];
             const activeData = projectData[activeSystemId] || {};
 
@@ -570,7 +570,7 @@
                     let qty = formatNum(item.quantity);
                     let done = formatNum(item.stages[activePhaseId] || 0);
                     let remaining = formatNum(qty - done);
-                    
+
                     let isComplete = remaining <= 0;
                     let progressPercent = qty > 0 ? Math.min(((done / qty) * 100), 100).toFixed(0) : 0;
 
@@ -616,20 +616,20 @@
             let currentVal = projectData[system][model].stages[phase] || 0;
             let newTotal = formatNum(currentVal + addedQty);
             let maxQty = formatNum(projectData[system][model].quantity);
-            
+
             if (newTotal < 0) newTotal = 0;
             if (newTotal > maxQty) newTotal = maxQty;
 
             projectData[system][model].stages[phase] = newTotal;
-            
+
             saveData();
-            renderActiveTable(); 
-            updateMasterChart();     
+            renderActiveTable();
+            updateMasterChart();
         }
 
         function exportReport() {
             const wb = XLSX.utils.book_new();
-            
+
             const systemNames = { lighting: "Lighting", cabling: "Structured Cabling", bms: "BMS" };
 
             for (let sysKey in projectData) {
@@ -639,7 +639,7 @@
 
                 const exportArray = Object.keys(projectData[sysKey]).map(model => {
                     const item = projectData[sysKey][model];
-                    
+
                     let rowData = {
                         "Model Reference": model,
                         "Total Quantity": formatNum(item.quantity),
@@ -651,7 +651,7 @@
                     for(let p in activeConf) {
                         let done = item.stages[p] || 0;
                         overallItemProgress += (done / item.quantity) * activeConf[p].w;
-                        
+
                         rowData[`${activeConf[p].text} Done`] = formatNum(done);
                         rowData[`${activeConf[p].text} Rem`] = formatNum(item.quantity - done);
                     }
@@ -676,7 +676,7 @@
             const hours = String(now.getHours()).padStart(2, '0');
             const mins = String(now.getMinutes()).padStart(2, '0');
             const secs = String(now.getSeconds()).padStart(2, '0');
-            
+
             const timeStamp = `${year}-${month}-${day}_${hours}-${mins}-${secs}`;
             XLSX.writeFile(wb, `Chronos_Master_Deployment_${timeStamp}.xlsx`);
         }
