@@ -427,7 +427,9 @@
                 let activeConf = phaseConfig[sys];
                 if (!activeConf) continue;
 
-                for (let item of Object.values(projectData[sys])) {
+                let sysData = projectData[sys];
+                for (let key in sysData) {
+                    let item = sysData[key];
                     totalPossible += item.quantity;
                     let itemDone = 0;
                     for (let p in activeConf) {
