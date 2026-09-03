@@ -358,10 +358,16 @@
             if (!projectData[targetSystem]) projectData[targetSystem] = {};
 
             const activeConf = phaseConfig[targetSystem];
+            const keyMap = {};
 
             data.forEach(row => {
                 let normalizedRow = {};
-                for (let key in row) { normalizedRow[key.toLowerCase().trim()] = row[key]; }
+                for (let key in row) {
+                    if (keyMap[key] === undefined) {
+                        keyMap[key] = key.toLowerCase().trim();
+                    }
+                    normalizedRow[keyMap[key]] = row[key];
+                }
 
                 let model = normalizedRow['fixture reference'] || normalizedRow['model reference'] || normalizedRow['future reference'] ||
                             normalizedRow['model number'] || normalizedRow['model number/future reference'] ||
