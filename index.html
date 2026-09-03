@@ -195,7 +195,7 @@
                     <option value="cabling">Structured Cabling</option>
                     <option value="bms">BMS</option>
                 </select>
-                <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
+                <input type="file" id="excelUpload" class="excel-upload" data-target="uploadTargetSystem" accept=".xlsx, .xls, .csv" />
             </div>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">Select the target discipline and upload a BOM. (If restoring an exported backup, the system ignores the dropdown and sorts automatically).</p>
         </div>
@@ -209,7 +209,7 @@
                 <option value="cabling">Structured Cabling</option>
                 <option value="bms">BMS</option>
             </select>
-            <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
+            <input type="file" id="excelUploadInitial" class="excel-upload" data-target="uploadTargetSystemInitial" accept=".xlsx, .xls, .csv" />
         </div>
         <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">If restoring a previous project, simply select your exported Excel file above.</p>
     </div>
@@ -307,8 +307,9 @@
 
         function saveData() { localStorage.setItem('deploymentTrackerData', JSON.stringify(projectData)); }
 
-        document.getElementById('excelUpload').addEventListener('change', handleUpload);
-        document.getElementById('excelUploadInitial').addEventListener('change', handleUpload);
+        document.querySelectorAll('.excel-upload').forEach(input => {
+            input.addEventListener('change', handleUpload);
+        });
 
         function handleUpload(e) {
             const file = e.target.files[0];
@@ -338,16 +339,16 @@
                     alert("Master Project Backup Successfully Restored!");
 
                 } else {
-                    const targetSystem = e.target.id === 'excelUploadInitial'
-                        ? document.getElementById('uploadTargetSystemInitial').value
-                        : document.getElementById('uploadTargetSystem').value;
+                    const targetSelectId = e.target.getAttribute('data-target');
+                    const targetSystem = document.getElementById(targetSelectId).value;
                     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     processData(jsonData, targetSystem, false);
                     document.getElementById('activeSystemSelector').value = targetSystem;
                 }
 
-                document.getElementById('excelUpload').value = '';
-                document.getElementById('excelUploadInitial').value = '';
+                document.querySelectorAll('.excel-upload').forEach(input => {
+                    input.value = '';
+                });
 
                 onSystemChange();
             };
