@@ -371,7 +371,7 @@
                 let unit = normalizedRow['unit'] || normalizedRow['uom'] || "ea";
 
                 if (model && !isNaN(qty)) {
-                    model = String(model).trim();
+                    model = sanitizeKey(String(model).trim());
                     qty = formatNum(qty);
 
                     if (!projectData[targetSystem][model]) {

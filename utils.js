@@ -14,6 +14,16 @@ function escapeHTML(str) {
     });
 }
 
+function sanitizeKey(key) {
+    if (typeof key !== 'string') {
+        return key;
+    }
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return key + '_safe';
+    }
+    return key;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escapeHTML };
+    module.exports = { escapeHTML, sanitizeKey };
 }
