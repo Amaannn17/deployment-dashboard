@@ -480,7 +480,7 @@
 
         function hasAnyData() {
             for (let sys in projectData) {
-                if (Object.keys(projectData[sys]).length > 0) return true;
+                for (let _ in projectData[sys]) return true;
             }
             return false;
         }
