@@ -671,14 +671,11 @@
             }
 
             const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const mins = String(now.getMinutes()).padStart(2, '0');
-            const secs = String(now.getSeconds()).padStart(2, '0');
-
-            const timeStamp = `${year}-${month}-${day}_${hours}-${mins}-${secs}`;
+            const timeStamp = new Date(now.getTime() - (now.getTimezoneOffset() * 60000))
+                .toISOString()
+                .slice(0, 19)
+                .replace('T', '_')
+                .replace(/:/g, '-');
             XLSX.writeFile(wb, `Chronos_Master_Deployment_${timeStamp}.xlsx`);
         }
 
