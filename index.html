@@ -305,7 +305,13 @@
             }
         });
 
-        function saveData() { localStorage.setItem('deploymentTrackerData', JSON.stringify(projectData)); }
+        let saveTimeout;
+        function saveData() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                localStorage.setItem('deploymentTrackerData', JSON.stringify(projectData));
+            }, 300);
+        }
 
         document.getElementById('excelUpload').addEventListener('change', handleUpload);
         document.getElementById('excelUploadInitial').addEventListener('change', handleUpload);
