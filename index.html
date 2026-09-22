@@ -545,8 +545,8 @@
             let tableHTML = `
                 <div class="table-card" style="border-top: 3px solid ${activeColor}">
                     <h3 style="color: ${activeColor}">
-                        <span>${activeSystemTitle}</span>
-                        <span style="color: var(--text-secondary); font-size: 0.9rem; align-self: flex-end; font-weight: normal;">Viewing: ${activePhaseTitle}</span>
+                        <span>${escapeHTML(activeSystemTitle)}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.9rem; align-self: flex-end; font-weight: normal;">Viewing: ${escapeHTML(activePhaseTitle)}</span>
                     </h3>
                     <div style="overflow-x: auto;">
                         <table>
@@ -565,7 +565,7 @@
             `;
 
             if (Object.keys(activeData).length === 0) {
-                tableHTML += `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${activeSystemTitle} yet. Upload a BOM above.</td></tr>`;
+                tableHTML += `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${escapeHTML(activeSystemTitle)} yet. Upload a BOM above.</td></tr>`;
             } else {
                 for (const [model, item] of Object.entries(activeData)) {
                     let qty = formatNum(item.quantity);
