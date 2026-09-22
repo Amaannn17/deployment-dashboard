@@ -14,6 +14,10 @@ function escapeHTML(str) {
     });
 }
 
+function formatNum(num) {
+    return parseFloat(Number(num).toFixed(2));
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escapeHTML };
+    module.exports = { escapeHTML, formatNum };
 }
