@@ -19,3 +19,17 @@ test('escapeHTML handles non-strings gracefully', () => {
 test('escapeHTML returns same string if no entities', () => {
     assert.strictEqual(escapeHTML('Safe String 123'), 'Safe String 123');
 });
+
+test('escapeHTML neutralizes XSS vectors in attributes and event handlers', () => {
+    const xssPayload1 = "model' onload='alert(1)";
+    assert.strictEqual(
+        escapeHTML(xssPayload1),
+        "model&#39; onload=&#39;alert(1)"
+    );
+
+    const xssPayload2 = '"><script>alert("XSS")</script>';
+    assert.strictEqual(
+        escapeHTML(xssPayload2),
+        '&quot;&gt;&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'
+    );
+});
