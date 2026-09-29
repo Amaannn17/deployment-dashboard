@@ -19,3 +19,23 @@ test('escapeHTML handles non-strings gracefully', () => {
 test('escapeHTML returns same string if no entities', () => {
     assert.strictEqual(escapeHTML('Safe String 123'), 'Safe String 123');
 });
+
+function hasAnyData(projectData) {
+    for (let sys in projectData) {
+        for (let item in projectData[sys]) return true;
+    }
+    return false;
+}
+
+test('hasAnyData returns false when projectData is empty', () => {
+    const projectData = { lighting: {}, cabling: {}, bms: {} };
+    assert.strictEqual(hasAnyData(projectData), false);
+});
+
+test('hasAnyData returns true when projectData contains items in any system', () => {
+    const projectDataWithLighting = { lighting: { fixture1: { quantity: 5 } }, cabling: {}, bms: {} };
+    assert.strictEqual(hasAnyData(projectDataWithLighting), true);
+
+    const projectDataWithBms = { lighting: {}, cabling: {}, bms: { sensor1: { quantity: 2 } } };
+    assert.strictEqual(hasAnyData(projectDataWithBms), true);
+});
