@@ -564,8 +564,9 @@
                             <tbody>
             `;
 
+            let rows = [];
             if (Object.keys(activeData).length === 0) {
-                tableHTML += `<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${activeSystemTitle} yet. Upload a BOM above.</td></tr>`;
+                rows.push(`<tr><td colspan="7" style="text-align:center; padding: 30px; color: var(--text-secondary)">No equipment loaded for ${activeSystemTitle} yet. Upload a BOM above.</td></tr>`);
             } else {
                 for (const [model, item] of Object.entries(activeData)) {
                     let qty = formatNum(item.quantity);
@@ -578,7 +579,7 @@
                     // ENCODE THE MODEL NAME TO PROTECT AGAINST QUOTES
                     let safeModel = encodeURIComponent(model).replace(/'/g, "%27");
 
-                    tableHTML += `
+                    rows.push(`
                         <tr class="${isComplete ? 'completed-row' : ''}">
                             <td style="font-weight: 500;">${escapeHTML(model)}</td>
                             <td>${qty}</td>
@@ -598,11 +599,11 @@
                                 </div>
                             </td>
                         </tr>
-                    `;
+                    `);
                 }
             }
 
-            tableHTML += `</tbody></table></div></div>`;
+            tableHTML += rows.join('') + `</tbody></table></div></div>`;
             container.innerHTML = tableHTML;
         }
 
