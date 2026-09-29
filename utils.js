@@ -14,6 +14,14 @@ function escapeHTML(str) {
     });
 }
 
+function isSafeKey(key) {
+    if (typeof key !== 'string') {
+        return false;
+    }
+    const unsafeKeys = ['__proto__', 'constructor', 'prototype'];
+    return key.trim() !== '' && !unsafeKeys.includes(key);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escapeHTML };
+    module.exports = { escapeHTML, isSafeKey };
 }
