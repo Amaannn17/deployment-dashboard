@@ -181,14 +181,14 @@
         </div>
     </div>
 
-    <div class="dashboard-container" id="dashboardContainer" style="display: none;">
-        <div class="chart-card">
+    <div class="dashboard-container" id="dashboardContainer">
+        <div class="chart-card" id="chartCard" style="display: none;">
             <h3 style="margin: 0 0 10px 0; color: var(--text-primary); font-size: 1rem;">Project Completion by System</h3>
             <canvas id="chart-overall"></canvas>
         </div>
 
-        <div class="upload-card">
-            <h3 style="margin-top: 0; color: var(--text-primary);">Add Equipment (BOM) or Restore Backup</h3>
+        <div class="upload-card" id="mainUploadCard">
+            <h3 id="uploadTitle" style="margin-top: 0; color: var(--text-primary);">Initialize Project or Restore Backup</h3>
             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                 <select id="uploadTargetSystem">
                     <option value="lighting">Lighting</option>
@@ -197,21 +197,8 @@
                 </select>
                 <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" />
             </div>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">Select the target discipline and upload a BOM. (If restoring an exported backup, the system ignores the dropdown and sorts automatically).</p>
+            <p id="uploadDesc" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">If restoring a previous project, simply select your exported Excel file above.</p>
         </div>
-    </div>
-
-    <div class="upload-card" id="initialUpload">
-        <h3 style="margin-top: 0;">Initialize Project or Restore Backup</h3>
-        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-            <select id="uploadTargetSystemInitial">
-                <option value="lighting">Lighting</option>
-                <option value="cabling">Structured Cabling</option>
-                <option value="bms">BMS</option>
-            </select>
-            <input type="file" id="excelUploadInitial" accept=".xlsx, .xls, .csv" />
-        </div>
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0; margin-top: 15px;">If restoring a previous project, simply select your exported Excel file above.</p>
     </div>
 
     <div class="view-control-bar" id="viewControlBar" style="display: none;">
@@ -308,7 +295,6 @@
         function saveData() { localStorage.setItem('deploymentTrackerData', JSON.stringify(projectData)); }
 
         document.getElementById('excelUpload').addEventListener('change', handleUpload);
-        document.getElementById('excelUploadInitial').addEventListener('change', handleUpload);
 
         function handleUpload(e) {
             const file = e.target.files[0];
@@ -338,16 +324,13 @@
                     alert("Master Project Backup Successfully Restored!");
 
                 } else {
-                    const targetSystem = e.target.id === 'excelUploadInitial'
-                        ? document.getElementById('uploadTargetSystemInitial').value
-                        : document.getElementById('uploadTargetSystem').value;
+                    const targetSystem = document.getElementById('uploadTargetSystem').value;
                     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     processData(jsonData, targetSystem, false);
                     document.getElementById('activeSystemSelector').value = targetSystem;
                 }
 
                 document.getElementById('excelUpload').value = '';
-                document.getElementById('excelUploadInitial').value = '';
 
                 onSystemChange();
             };
@@ -513,8 +496,9 @@
         function renderUI() {
             const hasData = hasAnyData();
 
-            document.getElementById('initialUpload').style.display = hasData ? 'none' : 'block';
-            document.getElementById('dashboardContainer').style.display = hasData ? 'flex' : 'none';
+            document.getElementById('chartCard').style.display = hasData ? 'block' : 'none';
+            document.getElementById('uploadTitle').innerText = hasData ? 'Add Equipment (BOM) or Restore Backup' : 'Initialize Project or Restore Backup';
+            document.getElementById('uploadDesc').innerText = hasData ? 'Select the target discipline and upload a BOM. (If restoring an exported backup, the system ignores the dropdown and sorts automatically).' : 'If restoring a previous project, simply select your exported Excel file above.';
             document.getElementById('viewControlBar').style.display = hasData ? 'flex' : 'none';
             document.getElementById('exportBtn').style.display = hasData ? 'block' : 'none';
             document.getElementById('clearBtn').style.display = hasData ? 'block' : 'none';
