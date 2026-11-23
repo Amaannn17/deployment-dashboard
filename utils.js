@@ -1,8 +1,8 @@
 function escapeHTML(str) {
-    if (typeof str !== 'string') {
-        return str;
+    if (str === null || str === undefined) {
+        return '';
     }
-    return str.replace(/[&<>'"]/g, function(match) {
+    return String(str).replace(/[&<>'"]/g, function(match) {
         switch (match) {
             case '&': return '&amp;';
             case '<': return '&lt;';
